@@ -33,7 +33,7 @@ go build
 
 ```bash
 # View a JSON file
-lazyjson data.json
+lazyjson example.json
 
 # View JSON from a URL
 curl https://api.example.com/data.json > data.json && lazyjson data.json
