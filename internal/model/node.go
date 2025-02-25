@@ -45,12 +45,21 @@ func GetFilePath() string {
 
 // BuildTree constructs a tree from JSON data
 func BuildTree(key string, value any, parent *Node, path string) *Node {
+	// Calculate current depth
+	depth := 0
+	p := parent
+	for p != nil {
+		depth++
+		p = p.Parent
+	}
+
 	node := &Node{
-		Key:         key,
-		Value:       value,
-		Parent:      parent,
-		Children:    []*Node{},
-		Expanded:    false,
+		Key:      key,
+		Value:    value,
+		Parent:   parent,
+		Children: []*Node{},
+		// Auto-expand nodes up to depth 3
+		Expanded:    depth <= 3,
 		Path:        path,
 		MatchFilter: false,
 	}

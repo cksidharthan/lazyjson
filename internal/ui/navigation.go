@@ -46,6 +46,10 @@ func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
 
 		// Clean up the line by removing tree symbols and whitespace
 		line = strings.TrimSpace(line)
+		// Handle deep nesting prefixes
+		for strings.HasPrefix(line, "│   ") {
+			line = strings.TrimPrefix(line, "│   ")
+		}
 		line = strings.TrimPrefix(line, "├── ")
 		line = strings.TrimPrefix(line, "└── ")
 		line = strings.TrimSuffix(line, " [-]")
