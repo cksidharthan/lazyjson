@@ -44,6 +44,16 @@ func SetupKeybindings(g *gocui.Gui) error {
 		return err
 	}
 
+	// Expand all nodes
+	if err := g.SetKeybinding("tree", 'e', gocui.ModNone, ExpandAll); err != nil {
+		return err
+	}
+
+	// Collapse all nodes
+	if err := g.SetKeybinding("tree", 'c', gocui.ModNone, CollapseAll); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 
+	"github.com/cksidharthan/lazyjson/internal/model"
 	"github.com/jroimartin/gocui"
 )
 
@@ -16,7 +17,7 @@ func Layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Title = "JSON Viewer"
-		fmt.Fprintln(v, "  Use ↑/↓ to navigate, Enter to expand/collapse, / to filter, q to quit")
+		fmt.Fprintf(v, "  File: %s", model.GetFilePath())
 	}
 
 	// Filter view (moved to top)
@@ -49,12 +50,14 @@ func Layout(g *gocui.Gui) error {
 	}
 
 	// Help view (at bottom)
-	if v, err := g.SetView("help", 0, maxY-3, maxX-1, maxY-1); err != nil {
+	if v, err := g.SetView("help", 0, maxY-4, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Title = "Help"
-		fmt.Fprintln(v, "  ↑/↓: Navigate   Enter: Expand/Collapse   /: Filter   Escape: Clear Filter   q: Quit")
+		fmt.Fprintln(v, "  Navigation │ ↑/↓: Move cursor   Enter: Expand/Collapse node   e: Expand all   c: Collapse all")
+		fmt.Fprintln(v, "  Filter     │ /: Enable filter   Esc: Clear filter   Enter: Apply filter")
+		fmt.Fprintln(v, "  Other      │ q: Quit")
 	}
 
 	return nil

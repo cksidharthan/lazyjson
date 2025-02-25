@@ -151,6 +151,22 @@ func ClearFilter(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// ExpandAll expands all nodes in the tree
+func ExpandAll(g *gocui.Gui, v *gocui.View) error {
+	rootNode := model.GetRootNode()
+	model.ExpandAll(rootNode)
+	RenderTree(v)
+	return nil
+}
+
+// CollapseAll collapses all nodes in the tree
+func CollapseAll(g *gocui.Gui, v *gocui.View) error {
+	rootNode := model.GetRootNode()
+	model.CollapseAll(rootNode)
+	RenderTree(v)
+	return nil
+}
+
 // Quit exits the application
 func Quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit

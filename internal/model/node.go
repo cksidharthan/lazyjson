@@ -19,6 +19,7 @@ type Node struct {
 var (
 	rootNode *Node
 	currNode *Node
+	filePath string
 )
 
 // SetRootNode sets the root node for the model
@@ -30,6 +31,16 @@ func SetRootNode(node *Node) {
 // GetRootNode returns the root node
 func GetRootNode() *Node {
 	return rootNode
+}
+
+// SetFilePath sets the file path for the current JSON file
+func SetFilePath(path string) {
+	filePath = path
+}
+
+// GetFilePath returns the current JSON file path
+func GetFilePath() string {
+	return filePath
 }
 
 // BuildTree constructs a tree from JSON data
@@ -104,4 +115,28 @@ func GetNodeValueString(node *Node) string {
 // IsExpandable returns true if the node can be expanded/collapsed
 func IsExpandable(node *Node) bool {
 	return node.Type == "object" || node.Type == "array"
+}
+
+// ExpandAll expands all nodes in the tree
+func ExpandAll(node *Node) {
+	if node == nil {
+		return
+	}
+	
+	node.Expanded = true
+	for _, child := range node.Children {
+		ExpandAll(child)
+	}
+}
+
+// CollapseAll collapses all nodes in the tree
+func CollapseAll(node *Node) {
+	if node == nil {
+		return
+	}
+	
+	node.Expanded = false
+	for _, child := range node.Children {
+		CollapseAll(child)
+	}
 }

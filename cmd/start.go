@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/cksidharthan/lazyjson/internal/model"
 	"github.com/cksidharthan/lazyjson/internal/parser"
@@ -33,6 +34,13 @@ func Start() {
 	if err != nil {
 		log.Fatalf("Error loading JSON: %v", err)
 	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(filename)
+	if err != nil {
+		log.Fatalf("Error getting absolute path: %v", err)
+	}
+	model.SetFilePath(absPath)
 
 	// Build tree model
 	rootNode := model.BuildTree("root", data, nil, "")
