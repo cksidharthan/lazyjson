@@ -104,8 +104,12 @@ func ExpandFilterMatches(node interface{}) {
 		// If this node matches, expand all its parents too
 		parent := n.GetParent()
 		for parent != nil {
-			parent.(Node).SetExpanded(true)
-			parent = parent.(Node).GetParent()
+			if pNode, ok := parent.(Node); ok {
+				pNode.SetExpanded(true)
+				parent = pNode.GetParent()
+			} else {
+				break
+			}
 		}
 	}
 

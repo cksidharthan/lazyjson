@@ -14,11 +14,19 @@ import (
 
 func Start() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: jsonui <json-file>")
-		return
+		fmt.Println("Error: No JSON file specified")
+		fmt.Println("Usage: lazyjson <json-file>")
+		fmt.Println("\nExample: lazyjson data.json")
+		os.Exit(1)
 	}
 
 	filename := os.Args[1]
+
+	// Check if file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		fmt.Printf("Error: File '%s' does not exist\n", filename)
+		os.Exit(1)
+	}
 
 	// Parse JSON file
 	data, err := parser.LoadJSON(filename)
