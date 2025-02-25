@@ -1,0 +1,54 @@
+package cmd
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/cksidharthan/lazyjson/internal/model"
+	"github.com/cksidharthan/lazyjson/internal/parser"
+	"github.com/cksidharthan/lazyjson/internal/ui"
+
+	"github.com/jroimartin/gocui"
+)
+
+func Start() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: jsonui <json-file>")
+		return
+	}
+
+	filename := os.Args[1]
+
+	// Parse JSON file
+	data, err := parser.LoadJSON(filename)
+	if err != nil {
+		log.Fatalf("Error loading JSON: %v", err)
+	}
+
+	// Build tree model
+	rootNode := model.BuildTree("root", data, nil, "")
+	rootNode.Expanded = true
+	model.SetRootNode(rootNode)
+
+	// Initialize GUI
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	if err != nil {
+		log.Fatalf("Failed to create GUI: %v", err)
+	}
+	defer g.Close()
+
+	// Setup UI components
+	g.SetManagerFunc(ui.Layout)
+	if err := ui.SetupKeybindings(g); err != nil {
+		log.Fatalf("Failed to set keybindings: %v", err)
+	}
+
+	g.Cursor = true
+	g.Mouse = true
+
+	// Start main loop
+	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		log.Fatalf("Main loop error: %v", err)
+	}
+}
