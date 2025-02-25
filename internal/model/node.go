@@ -7,7 +7,7 @@ import (
 // Node represents a node in the JSON tree
 type Node struct {
 	Key         string
-	Value       interface{}
+	Value       any
 	Parent      *Node
 	Children    []*Node
 	Expanded    bool
@@ -44,7 +44,7 @@ func GetFilePath() string {
 }
 
 // BuildTree constructs a tree from JSON data
-func BuildTree(key string, value interface{}, parent *Node, path string) *Node {
+func BuildTree(key string, value any, parent *Node, path string) *Node {
 	node := &Node{
 		Key:         key,
 		Value:       value,
@@ -56,7 +56,7 @@ func BuildTree(key string, value interface{}, parent *Node, path string) *Node {
 	}
 
 	switch v := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		node.Type = "object"
 		for k, val := range v {
 			childPath := path
@@ -67,7 +67,7 @@ func BuildTree(key string, value interface{}, parent *Node, path string) *Node {
 			child := BuildTree(k, val, node, childPath)
 			node.Children = append(node.Children, child)
 		}
-	case []interface{}:
+	case []any:
 		node.Type = "array"
 		for i, val := range v {
 			k := fmt.Sprintf("[%d]", i)
@@ -122,7 +122,7 @@ func ExpandAll(node *Node) {
 	if node == nil {
 		return
 	}
-	
+
 	node.Expanded = true
 	for _, child := range node.Children {
 		ExpandAll(child)
@@ -134,7 +134,7 @@ func CollapseAll(node *Node) {
 	if node == nil {
 		return
 	}
-	
+
 	node.Expanded = false
 	for _, child := range node.Children {
 		CollapseAll(child)

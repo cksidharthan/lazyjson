@@ -36,7 +36,7 @@ func IsShowingAll() bool {
 // The Node interface to avoid circular imports
 type Node interface {
 	GetKey() string
-	GetValue() interface{}
+	GetValue() any
 	GetType() string
 	GetChildren() []Node
 	GetParent() Node
@@ -46,7 +46,7 @@ type Node interface {
 }
 
 // ApplyFilter applies a filter to the tree and returns whether the node matches
-func ApplyFilter(node interface{}, filter string) bool {
+func ApplyFilter(node any, filter string) bool {
 	n := node.(Node)
 
 	// Convert to lowercase for case-insensitive matching
@@ -85,7 +85,7 @@ func ApplyFilter(node interface{}, filter string) bool {
 }
 
 // ClearFilter clears the filter from all nodes
-func ClearFilter(node interface{}) {
+func ClearFilter(node any) {
 	n := node.(Node)
 	n.SetMatchFilter(false)
 
@@ -95,7 +95,7 @@ func ClearFilter(node interface{}) {
 }
 
 // ExpandFilterMatches expands nodes that match the filter
-func ExpandFilterMatches(node interface{}) {
+func ExpandFilterMatches(node any) {
 	n := node.(Node)
 
 	if n.IsMatchFilter() && (n.GetType() == "object" || n.GetType() == "array") {
