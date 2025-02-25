@@ -19,8 +19,8 @@ func Layout(g *gocui.Gui) error {
 		fmt.Fprintln(v, "  Use ↑/↓ to navigate, Enter to expand/collapse, / to filter, q to quit")
 	}
 
-	// Filter view
-	if v, err := g.SetView("filter", 0, maxY-7, maxX-1, maxY-5); err != nil {
+	// Filter view (moved to top)
+	if v, err := g.SetView("filter", 0, 3, maxX-1, 5); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -31,17 +31,8 @@ func Layout(g *gocui.Gui) error {
 		})
 	}
 
-	// Help view
-	if v, err := g.SetView("help", 0, maxY-4, maxX-1, maxY-1); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		v.Title = "Help"
-		fmt.Fprintln(v, "  ↑/↓: Navigate   Enter: Expand/Collapse   /: Filter   Escape: Clear Filter   q: Quit")
-	}
-
 	// Main view for JSON tree
-	if v, err := g.SetView("tree", 0, 3, maxX-1, maxY-8); err != nil {
+	if v, err := g.SetView("tree", 0, 6, maxX-1, maxY-4); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -55,6 +46,15 @@ func Layout(g *gocui.Gui) error {
 		if _, err := g.SetCurrentView("tree"); err != nil {
 			return err
 		}
+	}
+
+	// Help view (at bottom)
+	if v, err := g.SetView("help", 0, maxY-3, maxX-1, maxY-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Title = "Help"
+		fmt.Fprintln(v, "  ↑/↓: Navigate   Enter: Expand/Collapse   /: Filter   Escape: Clear Filter   q: Quit")
 	}
 
 	return nil

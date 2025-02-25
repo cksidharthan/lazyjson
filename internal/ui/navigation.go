@@ -108,7 +108,13 @@ func ActivateFilter(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	filterView.Clear()
+	// Don't clear the filter view, just set cursor to end of content
+	if filterView.Buffer() != "" {
+		lines := len(filterView.BufferLines())
+		lastLine := lines - 1
+		lastLineContent := filterView.BufferLines()[lastLine]
+		filterView.SetCursor(len(lastLineContent), lastLine)
+	}
 	g.SetCurrentView("filter")
 	return nil
 }
@@ -121,17 +127,27 @@ func ReturnToTree(g *gocui.Gui, v *gocui.View) error {
 
 // ClearFilter clears the active filter
 func ClearFilter(g *gocui.Gui, v *gocui.View) error {
-	filter.SetShowAll(true)
-	filter.ClearFilter(model.GetRootNode())
-
 	filterView, err := g.View("filter")
 	if err != nil {
 		return err
 	}
-	filterView.Clear()
-	filter.SetFilterText("")
 
-	RenderTree(v)
+	// Clear the filter view
+	filterView.Clear()
+	filterView.SetCursor(0, 0)
+
+	// Reset filter state
+	filter.SetFilterText("")
+	filter.SetShowAll(true)
+	filter.ClearFilter(model.GetRootNode())
+
+	// Update tree view
+	treeView, err := g.View("tree")
+	if err != nil {
+		return err
+	}
+	RenderTree(treeView)
+
 	return nil
 }
 
