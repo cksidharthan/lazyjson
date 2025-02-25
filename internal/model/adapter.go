@@ -10,7 +10,7 @@ func (n *Node) GetKey() string {
 }
 
 // GetValue returns the node's value
-func (n *Node) GetValue() interface{} {
+func (n *Node) GetValue() any {
 	return n.Value
 }
 

@@ -11,6 +11,7 @@ import (
 var (
 	filterText string
 	showAll    bool = true
+	matchCount int  = 0
 )
 
 // SetFilterText sets the current filter text
@@ -33,10 +34,20 @@ func IsShowingAll() bool {
 	return showAll
 }
 
+// GetMatchCount returns the current match count
+func GetMatchCount() int {
+	return matchCount
+}
+
+// ResetMatchCount resets the match count to zero
+func ResetMatchCount() {
+	matchCount = 0
+}
+
 // The Node interface to avoid circular imports
 type Node interface {
 	GetKey() string
-	GetValue() interface{}
+	GetValue() any
 	GetType() string
 	GetChildren() []Node
 	GetParent() Node
@@ -46,7 +57,12 @@ type Node interface {
 }
 
 // ApplyFilter applies a filter to the tree and returns whether the node matches
-func ApplyFilter(node interface{}, filter string) bool {
+func ApplyFilter(node any, filter string) bool {
+	// Reset match count when starting from root
+	if n := node.(Node); n.GetParent() == nil {
+		ResetMatchCount()
+	}
+
 	n := node.(Node)
 
 	// Convert to lowercase for case-insensitive matching
@@ -67,6 +83,9 @@ func ApplyFilter(node interface{}, filter string) bool {
 
 	// Mark this node as matching if it does
 	matches := keyMatch || valueMatch
+	if matches {
+		matchCount++
+	}
 	n.SetMatchFilter(matches)
 
 	// Apply filter recursively to children
@@ -85,7 +104,7 @@ func ApplyFilter(node interface{}, filter string) bool {
 }
 
 // ClearFilter clears the filter from all nodes
-func ClearFilter(node interface{}) {
+func ClearFilter(node any) {
 	n := node.(Node)
 	n.SetMatchFilter(false)
 
@@ -95,7 +114,7 @@ func ClearFilter(node interface{}) {
 }
 
 // ExpandFilterMatches expands nodes that match the filter
-func ExpandFilterMatches(node interface{}) {
+func ExpandFilterMatches(node any) {
 	n := node.(Node)
 
 	if n.IsMatchFilter() && (n.GetType() == "object" || n.GetType() == "array") {

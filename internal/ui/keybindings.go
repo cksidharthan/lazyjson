@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cksidharthan/lazyjson/internal/filter"
@@ -68,13 +69,21 @@ func filterEditor(g *gocui.Gui, v *gocui.View, key gocui.Key, ch rune, mod gocui
 		if filterText != "" {
 			filter.SetShowAll(false)
 			rootNode := model.GetRootNode()
-			// Note: This will require changes to the model.Node to implement filter.Node interface
-			// For a complete implementation, you'd need to add adapter functions
 			filter.ApplyFilter(rootNode, filterText)
 			filter.ExpandFilterMatches(rootNode)
+
+			// Update matches view
+			if matchesView, err := g.View("matches"); err == nil {
+				matchesView.Clear()
+				fmt.Fprintf(matchesView, " %d", filter.GetMatchCount())
+			}
 		} else {
 			filter.SetShowAll(true)
 			filter.ClearFilter(model.GetRootNode())
+			// Clear matches view
+			if matchesView, err := g.View("matches"); err == nil {
+				matchesView.Clear()
+			}
 		}
 
 		g.SetCurrentView("tree")
