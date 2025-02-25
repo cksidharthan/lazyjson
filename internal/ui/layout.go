@@ -57,7 +57,7 @@ func Layout(g *gocui.Gui) error {
 	}
 
 	// Filter view
-	if v, err := g.SetView("filter", 0, 3, maxX-1, 5); err != nil {
+	if v, err := g.SetView("filter", 0, 3, maxX-20, 5); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -67,6 +67,15 @@ func Layout(g *gocui.Gui) error {
 		v.Editor = gocui.EditorFunc(func(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			filterEditor(g, v, key, ch, mod)
 		})
+	}
+
+	// Matches view
+	if v, err := g.SetView("matches", maxX-19, 3, maxX-1, 5); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Title = "Matches"
+		v.FgColor = gocui.ColorYellow
 	}
 
 	// Main view for JSON tree
