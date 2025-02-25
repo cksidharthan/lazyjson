@@ -2,8 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cksidharthan/lazyjson/internal/model"
+	"github.com/cksidharthan/lazyjson/internal/stats"
 	"github.com/jroimartin/gocui"
 )
 
@@ -11,14 +13,47 @@ import (
 func Layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	// Title view
+	// Title view with stats
 	if v, err := g.SetView("title", 0, 0, maxX-1, 2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
 		v.Title = "JSON Viewer"
 		v.FgColor = gocui.ColorYellow
-		fmt.Fprintf(v, "  \033[36mFile:\033[0m \033[33m%s\033[0m", model.GetFilePath())
+
+		// Get JSON stats
+		rootNode := model.GetRootNode()
+		jsonStats := stats.CalculateStats(rootNode)
+		statsStr := fmt.Sprintf("\033[36mNodes:\033[0m \033[33m%d\033[0m \033[36mDepth:\033[0m \033[33m%d\033[0m \033[36mObjects:\033[0m \033[33m%d\033[0m \033[36mArrays:\033[0m \033[33m%d\033[0m \033[36mValues:\033[0m \033[33m%d\033[0m",
+			jsonStats.TotalNodes,
+			jsonStats.MaxDepth,
+			jsonStats.ObjectCount,
+			jsonStats.ArrayCount,
+			jsonStats.ValueCount)
+
+		// Left side content
+		leftContent := fmt.Sprintf("  \033[36mFile:\033[0m \033[33m%s\033[0m", model.GetFilePath())
+
+		// Strip ANSI codes for length calculation
+		cleanLeftContent := strings.ReplaceAll(leftContent, "\033[36m", "")
+		cleanLeftContent = strings.ReplaceAll(cleanLeftContent, "\033[33m", "")
+		cleanLeftContent = strings.ReplaceAll(cleanLeftContent, "\033[0m", "")
+
+		cleanStatsStr := strings.ReplaceAll(statsStr, "\033[36m", "")
+		cleanStatsStr = strings.ReplaceAll(cleanStatsStr, "\033[33m", "")
+		cleanStatsStr = strings.ReplaceAll(cleanStatsStr, "\033[0m", "")
+
+		// Calculate padding for right alignment
+		padding := maxX - len(cleanLeftContent) - len(cleanStatsStr) - 3
+		if padding < 1 {
+			padding = 1
+		}
+
+		// Write content with right-aligned stats
+		fmt.Fprintf(v, "%s%s%s",
+			leftContent,
+			strings.Repeat(" ", padding),
+			statsStr)
 	}
 
 	// Filter view
