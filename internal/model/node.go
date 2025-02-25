@@ -134,9 +134,50 @@ func GetNodeValueType(node *Node) string {
 	}
 }
 
-// IsExpandable returns true if the node can be expanded/collapsed
+// IsExpandable returns true if the node has children and can be expanded
 func IsExpandable(node *Node) bool {
-	return node.Type == "object" || node.Type == "array"
+	return node != nil && len(node.Children) > 0
+}
+
+// ToggleNodeExpansion finds and toggles the expansion state of a node based on its line representation
+func ToggleNodeExpansion(line string) {
+	rootNode := GetRootNode()
+	showAll := true // We want to find the node even if it's filtered out
+
+	var findAndToggle func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool
+	findAndToggle = func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool {
+		// Skip if node is nil
+		if n == nil {
+			return false
+		}
+
+		// Build the line representation for this node
+		var nodeLine string
+		if n.Key == "root" {
+			nodeLine = "JSON Root"
+		} else {
+			nodeLine = n.Key + ": " + GetNodeValueString(n)
+		}
+
+		// Check if this is the line we're looking for
+		if line == nodeLine && IsExpandable(n) {
+			n.Expanded = !n.Expanded
+			return true
+		}
+
+		if n.Expanded {
+			for _, child := range n.Children {
+				if showAll || child.MatchFilter {
+					if findAndToggle(child, depth+1, false, prefix, lineCounter) {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}
+
+	findAndToggle(rootNode, 0, true, "", nil)
 }
 
 // ExpandAll expands all nodes in the tree
@@ -151,13 +192,17 @@ func ExpandAll(node *Node) {
 	}
 }
 
-// CollapseAll collapses all nodes in the tree
+// CollapseAll collapses all nodes in the tree except the root node
 func CollapseAll(node *Node) {
 	if node == nil {
 		return
 	}
 
-	node.Expanded = false
+	// Don't collapse the root node
+	if node.Key != "root" {
+		node.Expanded = false
+	}
+
 	for _, child := range node.Children {
 		CollapseAll(child)
 	}

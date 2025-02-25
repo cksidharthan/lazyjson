@@ -3,8 +3,8 @@ package ui
 import (
 	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
-
 	"github.com/jroimartin/gocui"
+	"strings"
 )
 
 // MoveDown handles down arrow navigation
@@ -35,69 +35,26 @@ func MoveUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// ToggleExpand expands or collapses the selected node
+// ToggleExpand toggles the expansion state of the current node
 func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
-	// Get current line
-	_, cy := v.Cursor()
-	_, oy := v.Origin()
-	lineNum := cy + oy
-
-	// Find node at this line
-	rootNode := model.GetRootNode()
-	showAll := filter.IsShowingAll()
-
-	var node *model.Node
-	var findNode func(n *model.Node, depth int, isLast bool, prefix string, lineCounter *int) bool
-	findNode = func(n *model.Node, depth int, isLast bool, prefix string, lineCounter *int) bool {
-		// Skip if filtering is active and node doesn't match
-		if !showAll && !n.MatchFilter {
-			return false
+	if v != nil {
+		_, cy := v.Cursor()
+		line, err := v.Line(cy)
+		if err != nil {
+			return err
 		}
 
-		if *lineCounter == lineNum {
-			node = n
-			return true
-		}
-		*lineCounter++
+		// Clean up the line by removing tree symbols and whitespace
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "├── ")
+		line = strings.TrimPrefix(line, "└── ")
+		line = strings.TrimSuffix(line, " [-]")
+		line = strings.TrimSuffix(line, " [+]")
 
-		if n.Expanded {
-			newPrefix := prefix
-			if depth > 0 {
-				if isLast {
-					newPrefix += "    "
-				} else {
-					newPrefix += "│   "
-				}
-			}
-
-			visibleChildren := 0
-			for _, child := range n.Children {
-				if showAll || child.MatchFilter {
-					visibleChildren++
-				}
-			}
-
-			visibleCount := 0
-			for _, child := range n.Children {
-				if showAll || child.MatchFilter {
-					if findNode(child, depth+1, visibleCount == visibleChildren-1, newPrefix, lineCounter) {
-						return true
-					}
-					visibleCount++
-				}
-			}
-		}
-		return false
-	}
-
-	lineCounter := 0
-	findNode(rootNode, 0, true, "", &lineCounter)
-
-	if node != nil && model.IsExpandable(node) {
-		node.Expanded = !node.Expanded
+		// Toggle node expansion
+		model.ToggleNodeExpansion(line)
 		RenderTree(v)
 	}
-
 	return nil
 }
 
@@ -159,10 +116,14 @@ func ExpandAll(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// CollapseAll collapses all nodes in the tree
+// CollapseAll collapses all nodes in the tree except the root node
 func CollapseAll(g *gocui.Gui, v *gocui.View) error {
 	rootNode := model.GetRootNode()
-	model.CollapseAll(rootNode)
+	// Keep root node expanded but collapse all children
+	rootNode.Expanded = true
+	for _, child := range rootNode.Children {
+		model.CollapseAll(child)
+	}
 	RenderTree(v)
 	return nil
 }

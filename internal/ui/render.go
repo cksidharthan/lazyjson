@@ -3,7 +3,6 @@ package ui
 import (
 	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
-
 	"github.com/jroimartin/gocui"
 )
 
@@ -33,19 +32,28 @@ func RenderTree(v *gocui.View) {
 		// Create the display string
 		if node.Key == "root" {
 			ColorizeRoot(v, "JSON Root")
+			// Always show expand/collapse for root if it has children
+			if len(node.Children) > 0 {
+				v.Write([]byte(" "))
+				if node.Expanded {
+					ColorizeExpand(v, "[-]")
+				} else {
+					ColorizeExpand(v, "[+]")
+				}
+			}
 		} else {
 			ColorizeKey(v, node.Key)
 			v.Write([]byte(": "))
 			ColorizeValue(v, model.GetNodeValueString(node), model.GetNodeValueType(node))
-		}
 
-		// Add expand/collapse indicator
-		if model.IsExpandable(node) {
-			v.Write([]byte(" "))
-			if node.Expanded {
-				ColorizeExpand(v, "[-]")
-			} else {
-				ColorizeExpand(v, "[+]")
+			// Add expand/collapse indicator for non-root nodes
+			if model.IsExpandable(node) {
+				v.Write([]byte(" "))
+				if node.Expanded {
+					ColorizeExpand(v, "[-]")
+				} else {
+					ColorizeExpand(v, "[+]")
+				}
 			}
 		}
 		v.Write([]byte("\n"))
