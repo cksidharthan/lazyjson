@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
 
@@ -11,55 +10,46 @@ import (
 // RenderTree renders the JSON tree in the view
 func RenderTree(v *gocui.View) {
 	v.Clear()
-	lines := []string{}
-
 	rootNode := model.GetRootNode()
 	showAll := filter.IsShowingAll()
 
-	var traverse func(node *model.Node, depth int, isLast bool, prefix string) bool
-	traverse = func(node *model.Node, depth int, isLast bool, prefix string) bool {
+	var traverse func(node *model.Node, depth int, isLast bool, prefix string)
+	traverse = func(node *model.Node, depth int, isLast bool, prefix string) {
 		// Skip if filtering is active and node doesn't match
 		if !showAll && !node.MatchFilter {
-			return false
+			return
 		}
 
 		// Create the line prefix with appropriate indentation
-		indent := prefix
 		if depth > 0 {
+			v.Write([]byte(prefix))
 			if isLast {
-				indent += "└── "
+				ColorizeTreeSymbol(v, "└── ")
 			} else {
-				indent += "├── "
+				ColorizeTreeSymbol(v, "├── ")
 			}
 		}
 
 		// Create the display string
-		var display string
 		if node.Key == "root" {
-			display = "JSON Root"
+			ColorizeRoot(v, "JSON Root")
 		} else {
-			keyDisplay := node.Key
-			valueDisplay := model.GetNodeValueString(node)
-			display = fmt.Sprintf("%s: %s", keyDisplay, valueDisplay)
+			ColorizeKey(v, node.Key)
+			v.Write([]byte(": "))
+			ColorizeValue(v, model.GetNodeValueString(node), model.GetNodeValueType(node))
 		}
 
 		// Add expand/collapse indicator
 		if model.IsExpandable(node) {
+			v.Write([]byte(" "))
 			if node.Expanded {
-				display += " [-]"
+				ColorizeExpand(v, "[-]")
 			} else {
-				display += " [+]"
+				ColorizeExpand(v, "[+]")
 			}
 		}
+		v.Write([]byte("\n"))
 
-		// Highlight matched nodes when filtering
-		if !showAll && node.MatchFilter {
-			display = "* " + display
-		}
-
-		lines = append(lines, indent+display)
-
-		// If node is expanded, traverse its children
 		if node.Expanded {
 			newPrefix := prefix
 			if depth > 0 {
@@ -79,27 +69,13 @@ func RenderTree(v *gocui.View) {
 
 			visibleCount := 0
 			for _, child := range node.Children {
-				if traverse(child, depth+1, visibleCount == visibleChildren-1, newPrefix) {
+				if showAll || child.MatchFilter {
+					traverse(child, depth+1, visibleCount == visibleChildren-1, newPrefix)
 					visibleCount++
 				}
 			}
 		}
-
-		return true
 	}
 
 	traverse(rootNode, 0, true, "")
-
-	// Display the lines with proper scrolling
-	for _, line := range lines {
-		fmt.Fprintln(v, line)
-	}
-
-	// Show filter status
-	filterText := filter.GetFilterText()
-	if !showAll {
-		v.Title = fmt.Sprintf("JSON Tree (Filtered by: %s)", filterText)
-	} else {
-		v.Title = "JSON Tree"
-	}
 }

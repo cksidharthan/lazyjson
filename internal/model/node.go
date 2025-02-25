@@ -112,6 +112,28 @@ func GetNodeValueString(node *Node) string {
 	}
 }
 
+// GetNodeValueType returns the type of the node's value as a string
+func GetNodeValueType(node *Node) string {
+	if node == nil || node.Value == nil {
+		return "null"
+	}
+
+	switch v := node.Value.(type) {
+	case string:
+		return "string"
+	case float64, int, int64, float32:
+		return "number"
+	case bool:
+		return "boolean"
+	case map[string]interface{}:
+		return "object"
+	case []interface{}:
+		return "array"
+	default:
+		return fmt.Sprintf("%T", v)
+	}
+}
+
 // IsExpandable returns true if the node can be expanded/collapsed
 func IsExpandable(node *Node) bool {
 	return node.Type == "object" || node.Type == "array"
