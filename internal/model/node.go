@@ -59,7 +59,7 @@ func BuildTree(key string, value any, parent *Node, path string) *Node {
 		Parent:   parent,
 		Children: []*Node{},
 		// Auto-expand nodes up to depth 3
-		Expanded:    depth <= 3,
+		Expanded:    depth <= 20,
 		Path:        path,
 		MatchFilter: false,
 	}
