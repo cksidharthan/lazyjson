@@ -115,7 +115,6 @@ func ClearFilter(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
-	restoreAndEnsureVisibleAfterFilter(model.GetRootNode())
 	RenderTree(treeView)
 
 	return nil
@@ -141,54 +140,54 @@ func CollapseAll(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// restoreAndEnsureVisibleAfterFilter traverses the node tree after filtering.
-// It expands the parents of all nodes that match the filter and restores
-// the pre-filter expansion state for all nodes.
-func restoreAndEnsureVisibleAfterFilter(node *model.Node) {
-	if node == nil {
-		return
-	}
-
-	// --- Step 1: Ensure Visibility of Matches ---
-	// If this node (or one of its children) matched the filter,
-	// we must ensure its parent hierarchy is expanded so it's visible.
-	if node.MatchFilter {
-		parent := node.Parent
-		for parent != nil {
-			// Check the *saved* state before expanding. If the user had
-			// explicitly collapsed a parent before filtering, we respect that
-			// unless that parent itself matched the filter (handled when parent is processed).
-			if savedState, exists := model.GetNodeExpansionState(parent.Path); !exists || savedState {
-				parent.Expanded = true
-			}
-			parent = parent.Parent
-		}
-	}
-
-	// --- Step 2: Restore Pre-Filter Expansion State ---
-	// Regardless of matching, restore the node's original expansion state
-	// that was saved before the filter was applied.
-	if savedState, exists := model.GetNodeExpansionState(node.Path); exists {
-		if model.IsExpandable(node) {
-			node.Expanded = savedState
-		}
-	} else if model.IsExpandable(node) {
-		// Default to collapsed if no prior state exists (e.g., new file)
-		node.Expanded = false
-	}
-
-	// --- Step 3: Recurse ---
-	// Process children. Crucially, we only need to recurse if the current
-	// node is *now* expanded (after state restoration) OR if it's the root.
-	// We must always process the children of the root node.
-	if node.Expanded || node.Parent == nil {
-		for _, child := range node.Children {
-			restoreAndEnsureVisibleAfterFilter(child)
-		}
-	}
-}
-
 // Quit exits the application
 func Quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
+}
+
+// expandParentsUpwards ensures all parent nodes up to the root are expanded.
+func expandParentsUpwards(node *model.Node) {
+	parent := node.Parent
+	for parent != nil {
+		if model.IsExpandable(parent) {
+			parent.Expanded = true
+		}
+		parent = parent.Parent
+	}
+}
+
+// It expands nodes that match the filter, their entire parent hierarchy,
+// and their entire subtree. Nodes not part of a matching hierarchy are collapsed.
+// Returns true if the current node or any of its descendants matched the filter.
+func ExpandMatchingHierarchy(node *model.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Step 1: Recursively check if any children match
+	isAnyChildMatching := false
+	for _, child := range node.Children {
+		// We need the result of the recursive call for the current node's logic
+		if ExpandMatchingHierarchy(child) {
+			isAnyChildMatching = true
+		}
+	}
+
+	// Step 2: Determine if the current node is part of the matching hierarchy
+	inMatchingHierarchy := node.MatchFilter || isAnyChildMatching
+
+	// Step 3: Set expansion state based on hierarchy status
+	if model.IsExpandable(node) {
+		node.Expanded = inMatchingHierarchy // Expand if in hierarchy, collapse otherwise
+	} else {
+		node.Expanded = false // Non-expandable nodes are always collapsed
+	}
+
+	// Step 4: If in hierarchy, expand parents
+	if inMatchingHierarchy {
+		expandParentsUpwards(node) // Ensure visibility from root
+	}
+
+	// Step 5: Return whether this node is in the matching hierarchy
+	return inMatchingHierarchy
 }

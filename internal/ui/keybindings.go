@@ -69,19 +69,15 @@ func filterEditor(g *gocui.Gui, v *gocui.View, key gocui.Key, ch rune, mod gocui
 		rootNode := model.GetRootNode()
 
 		if filterText != "" {
-			// 1. Save current expansion states before applying filter
-			// This preserves the user's view state across filtering operations.
-			model.SaveAllExpansionStates()
-
-			// 2. Apply filter: This marks nodes with MatchFilter=true/false
+			// 1. Apply filter: This marks nodes with MatchFilter=true/false
 			// but does NOT change expansion states directly.
 			filter.SetShowAll(false)
 			filter.ApplyFilter(rootNode, filterText)
 
-			// 3. Restore expansion states and ensure parents of matches are expanded
-			// This function iterates the tree, expands necessary parents for visibility,
-			// and restores the original saved expansion state for each node.
-			restoreAndEnsureVisibleAfterFilter(rootNode)
+			// 3. Expand the hierarchy containing matches
+			// This traverses the tree, expands nodes that match (or contain matches),
+			// ensures their parents are expanded, and collapses non-matching branches.
+			ExpandMatchingHierarchy(rootNode)
 
 			// 4. Update matches view (status bar)
 			if matchesView, err := g.View("matches"); err == nil {

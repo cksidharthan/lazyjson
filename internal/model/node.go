@@ -12,7 +12,7 @@ type Node struct {
 	Children    []*Node
 	Expanded    bool
 	// Unique, dot-separated path for node identification (e.g., "root.data.items[0].name")
-	Path        string 
+	Path        string
 	Type        string
 	MatchFilter bool
 }
@@ -21,9 +21,6 @@ var (
 	rootNode *Node
 	currNode *Node
 	filePath string
-	// expansionStates stores the desired expansion state (true=expanded)
-	// keyed by the unique node Path. Used to preserve state across filtering.
-	expansionStates map[string]bool = make(map[string]bool)
 )
 
 // SetRootNode sets the root node for the model
@@ -45,30 +42,6 @@ func SetFilePath(path string) {
 // GetFilePath returns the current JSON file path
 func GetFilePath() string {
 	return filePath
-}
-
-// StoreNodeExpansionState stores the expansion state of a node by its path
-func StoreNodeExpansionState(path string, expanded bool) {
-	if path == "" {
-		return
-	}
-	expansionStates[path] = expanded
-}
-
-// GetNodeExpansionState retrieves the stored expansion state of a node by its path
-func GetNodeExpansionState(path string) (bool, bool) {
-	if path == "" {
-		return false, false
-	}
-	// Returns the stored state and whether a state was actually stored for this path.
-	expanded, exists := expansionStates[path]
-	return expanded, exists
-}
-
-// ClearExpansionStates clears all stored expansion states, typically called
-// before saving new states or when clearing filters.
-func ClearExpansionStates() {
-	expansionStates = make(map[string]bool)
 }
 
 // BuildTree constructs a tree from JSON data
@@ -202,25 +175,6 @@ func findNodeByPath(node *Node, targetPath string) *Node {
 	return nil
 }
 
-// saveExpansionStateRecursive is a helper to recursively save states
-func saveExpansionStateRecursive(node *Node) {
-	if node == nil {
-		return
-	}
-	// Store the state regardless of expandability, as it might become expandable later
-	StoreNodeExpansionState(node.Path, node.Expanded)
-	for _, child := range node.Children {
-		saveExpansionStateRecursive(child)
-	}
-}
-
-// SaveAllExpansionStates iterates through the entire tree and saves
-// the current expansion state of each node to the expansionStates map.
-func SaveAllExpansionStates() {
-	ClearExpansionStates() // Clear previous states before saving new ones
-	saveExpansionStateRecursive(rootNode)
-}
-
 // ToggleNodeExpansionByPath finds a node by its unique path and toggles its expansion state
 // It returns true if a node was found and toggled, false otherwise.
 func ToggleNodeExpansionByPath(targetPath string) bool {
@@ -231,8 +185,6 @@ func ToggleNodeExpansionByPath(targetPath string) bool {
 
 	if nodeToToggle != nil && IsExpandable(nodeToToggle) {
 		nodeToToggle.Expanded = !nodeToToggle.Expanded
-		// Optionally update stored state if needed immediately, though maybe better after render?
-		// StoreNodeExpansionState(nodeToToggle.Path, nodeToToggle.Expanded)
 		return true
 	}
 	return false
@@ -245,7 +197,6 @@ func ExpandAll(node *Node) {
 	}
 
 	node.Expanded = true
-	StoreNodeExpansionState(node.Path, node.Expanded)
 	for _, child := range node.Children {
 		ExpandAll(child)
 	}
@@ -260,7 +211,6 @@ func CollapseAll(node *Node) {
 	// Don't collapse the root node
 	if node.Key != "root" {
 		node.Expanded = false
-		StoreNodeExpansionState(node.Path, node.Expanded)
 	}
 
 	for _, child := range node.Children {

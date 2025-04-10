@@ -99,6 +99,14 @@ func ApplyFilter(node Node, filter string) bool {
 	matches := directMatch || childMatch
 	node.SetMatchFilter(matches)
 
+	// If this node is a direct match, ensure its parents are expanded for visibility
+	// REMOVED: This logic is handled separately after filtering to expand the whole hierarchy.
+	/*
+	if directMatch {
+		expandParents(node)
+	}
+	*/
+
 	return matches
 }
 

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
 	"github.com/jroimartin/gocui"
 )
@@ -22,17 +21,11 @@ func RenderTree(v *gocui.View) {
 	lineToNodePath = make(map[int]string)
 	v.Clear()
 	rootNode := model.GetRootNode()
-	showAll := filter.IsShowingAll()
 	currentLine := 0
 
 	// Recursive function to traverse and render the tree
 	var renderNode func(node *model.Node, depth int, isLast bool, prefix string)
 	renderNode = func(node *model.Node, depth int, isLast bool, prefix string) {
-		// Skip nodes that don't match the filter (unless showing all)
-		if !showAll && !node.MatchFilter {
-			return
-		}
-
 		// Store the path for this line number *before* rendering the line content
 		lineToNodePath[currentLine] = node.Path
 
@@ -48,16 +41,12 @@ func RenderTree(v *gocui.View) {
 			newPrefix := calculateChildPrefix(prefix, depth, isLast)
 
 			// Count visible children for determining which is the last one
-			visibleChildren := countVisibleChildren(node, showAll)
+			visibleChildren := len(node.Children)
 
-			// Render each visible child
-			visibleCount := 0
-			for _, child := range node.Children {
-				if showAll || child.MatchFilter {
-					isLastChild := (visibleCount == visibleChildren-1)
-					renderNode(child, depth+1, isLastChild, newPrefix)
-					visibleCount++
-				}
+			// Render each child
+			for i, child := range node.Children {
+				isLastChild := (i == visibleChildren-1)
+				renderNode(child, depth+1, isLastChild, newPrefix)
 			}
 		}
 	}
@@ -131,16 +120,6 @@ func calculateChildPrefix(parentPrefix string, parentDepth int, parentIsLast boo
 }
 
 // Helper function to count visible children
-func countVisibleChildren(node *model.Node, showAll bool) int {
-	if showAll {
-		return len(node.Children)
-	}
-	
-	count := 0
-	for _, child := range node.Children {
-		if child.MatchFilter {
-			count++
-		}
-	}
-	return count
+func countVisibleChildren(node *model.Node) int {
+	return len(node.Children)
 }
