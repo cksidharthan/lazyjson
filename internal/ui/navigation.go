@@ -4,7 +4,6 @@ import (
 	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
 	"github.com/jroimartin/gocui"
-	"strings"
 )
 
 // MoveDown handles down arrow navigation
@@ -35,26 +34,73 @@ func MoveUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// ToggleExpand toggles the expansion state of the current node
-func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
+// MoveToTop moves the cursor and origin to the top of the view
+func MoveToTop(g *gocui.Gui, v *gocui.View) error {
 	if v != nil {
-		_, cy := v.Cursor()
-		line, err := v.Line(cy)
-		if err != nil {
-			return err
-		}
-
-		// Clean up the line by removing tree symbols and whitespace
-		line = strings.TrimSpace(line)
-		line = strings.TrimPrefix(line, "├── ")
-		line = strings.TrimPrefix(line, "└── ")
-		line = strings.TrimSuffix(line, " [-]")
-		line = strings.TrimSuffix(line, " [+]")
-
-		// Toggle node expansion
-		model.ToggleNodeExpansion(line)
-		RenderTree(v)
+		v.SetCursor(0, 0)
+		v.SetOrigin(0, 0)
 	}
+	return nil
+}
+
+// MoveToBottom moves the cursor and origin to the bottom of the view
+func MoveToBottom(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		// Lines returns the view's buffer lines, 0-indexed.
+		// Last line index is len(lines) - 1.
+		// If buffer is empty, lines is 1 (contains empty string), len is 1, last line is 0.
+		lines := v.ViewBufferLines()
+		lastLine := len(lines) - 1
+		if lastLine < 0 {
+			lastLine = 0 // Ensure we don't go negative for empty/single-line buffer
+		}
+		// Attempt to set cursor to the last line.
+		// If SetCursor fails (e.g., lastLine is outside visible area),
+		// gocui usually handles scrolling the origin automatically when cursor moves
+		// out of view, but we can also force SetOrigin if needed.
+		// For simplicity, let's try setting both.
+		v.SetOrigin(0, lastLine) // Move origin first
+		v.SetCursor(0, lastLine) // Then set cursor relative to the (potentially new) origin
+	}
+	return nil
+}
+
+// ToggleExpand toggles the expansion state of the current node using its path
+func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
+	if v == nil {
+		return nil
+	}
+
+	// Get the line number under the cursor (relative to the view origin)
+	_, cy := v.Cursor()
+	// Get the view's origin (top-left visible line)
+	_, oy := v.Origin()
+	// Calculate the absolute line number in the buffer
+	absoluteLine := oy + cy
+
+	// Retrieve the node path associated with this absolute line number
+	nodePath, exists := lineToNodePath[absoluteLine]
+	if !exists || nodePath == "" {
+		// If no path found for this line (e.g., empty view or error), do nothing
+		return nil
+	}
+
+	// Toggle the node using its path via the model function
+	toggled := model.ToggleNodeExpansionByPath(nodePath)
+
+	// Re-render the tree only if a node was actually toggled
+	if toggled {
+		// Preserve cursor position and origin
+		curX, curY := v.Cursor()
+		origX, origY := v.Origin()
+
+		RenderTree(v)
+
+		// Restore cursor position and origin
+		v.SetCursor(curX, curY)
+		v.SetOrigin(origX, origY)
+	}
+
 	return nil
 }
 
@@ -65,13 +111,10 @@ func ActivateFilter(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	// Don't clear the filter view, just set cursor to end of content
-	if filterView.Buffer() != "" {
-		lines := len(filterView.BufferLines())
-		lastLine := lines - 1
-		lastLineContent := filterView.BufferLines()[lastLine]
-		filterView.SetCursor(len(lastLineContent), lastLine)
-	}
+	// Clear the filter view before activating it
+	filterView.Clear()
+	filterView.SetCursor(0, 0)
+
 	g.SetCurrentView("filter")
 	return nil
 }
@@ -131,4 +174,51 @@ func CollapseAll(g *gocui.Gui, v *gocui.View) error {
 // Quit exits the application
 func Quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
+}
+
+// expandParentsUpwards ensures all parent nodes up to the root are expanded.
+func expandParentsUpwards(node *model.Node) {
+	parent := node.Parent
+	for parent != nil {
+		if model.IsExpandable(parent) {
+			parent.Expanded = true
+		}
+		parent = parent.Parent
+	}
+}
+
+// It expands nodes that match the filter, their entire parent hierarchy,
+// and their entire subtree. Nodes not part of a matching hierarchy are collapsed.
+// Returns true if the current node or any of its descendants matched the filter.
+func ExpandMatchingHierarchy(node *model.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	// Step 1: Recursively check if any children match
+	isAnyChildMatching := false
+	for _, child := range node.Children {
+		// We need the result of the recursive call for the current node's logic
+		if ExpandMatchingHierarchy(child) {
+			isAnyChildMatching = true
+		}
+	}
+
+	// Step 2: Determine if the current node is part of the matching hierarchy
+	inMatchingHierarchy := node.MatchFilter || isAnyChildMatching
+
+	// Step 3: Set expansion state based on hierarchy status
+	if model.IsExpandable(node) {
+		node.Expanded = inMatchingHierarchy // Expand if in hierarchy, collapse otherwise
+	} else {
+		node.Expanded = false // Non-expandable nodes are always collapsed
+	}
+
+	// Step 4: If in hierarchy, expand parents
+	if inMatchingHierarchy {
+		expandParentsUpwards(node) // Ensure visibility from root
+	}
+
+	// Step 5: Return whether this node is in the matching hierarchy
+	return inMatchingHierarchy
 }

@@ -1,4 +1,6 @@
-# lazyjson
+# LazyJSON
+
+> **A Note on Collaboration:** This project was primarily developed as an experiment to test AI prompting techniques and evaluate the capabilities of AI coding assistants (👋 Cascade!). While the AI generated a significant portion of the code, it required specific guidance, refinement, and occasional manual intervention to achieve the desired functionality and structure.
 
 Interactive TUI JSON viewer with tree navigation, expand/collapse functionality, and real-time filtering.
 
@@ -33,7 +35,7 @@ go build
 
 ```bash
 # View a JSON file
-lazyjson data.json
+lazyjson example.json
 
 # View JSON from a URL
 curl https://api.example.com/data.json > data.json && lazyjson data.json

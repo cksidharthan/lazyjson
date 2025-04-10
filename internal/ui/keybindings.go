@@ -24,6 +24,12 @@ func SetupKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("tree", gocui.KeyArrowUp, gocui.ModNone, MoveUp); err != nil {
 		return err
 	}
+	if err := g.SetKeybinding("tree", 'g', gocui.ModNone, MoveToTop); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("tree", 'G', gocui.ModNone, MoveToBottom); err != nil {
+		return err
+	}
 
 	// Expand/collapse
 	if err := g.SetKeybinding("tree", gocui.KeyEnter, gocui.ModNone, ToggleExpand); err != nil {
@@ -66,26 +72,36 @@ func filterEditor(g *gocui.Gui, v *gocui.View, key gocui.Key, ch rune, mod gocui
 		filterText := strings.TrimSpace(v.Buffer())
 		filter.SetFilterText(filterText)
 
-		if filterText != "" {
-			filter.SetShowAll(false)
-			rootNode := model.GetRootNode()
-			filter.ApplyFilter(rootNode, filterText)
-			filter.ExpandFilterMatches(rootNode)
+		rootNode := model.GetRootNode()
 
-			// Update matches view
+		if filterText != "" {
+			// 1. Apply filter: This marks nodes with MatchFilter=true/false
+			// but does NOT change expansion states directly.
+			filter.SetShowAll(false)
+			filter.ApplyFilter(rootNode, filterText)
+
+			// 3. Expand the hierarchy containing matches
+			// This traverses the tree, expands nodes that match (or contain matches),
+			// ensures their parents are expanded, and collapses non-matching branches.
+			ExpandMatchingHierarchy(rootNode)
+
+			// 4. Update matches view (status bar)
 			if matchesView, err := g.View("matches"); err == nil {
 				matchesView.Clear()
 				fmt.Fprintf(matchesView, " %d", filter.GetMatchCount())
 			}
 		} else {
+			// Clear filter
 			filter.SetShowAll(true)
-			filter.ClearFilter(model.GetRootNode())
+			filter.ClearFilter(rootNode)
+
 			// Clear matches view
 			if matchesView, err := g.View("matches"); err == nil {
 				matchesView.Clear()
 			}
 		}
 
+		// Return to tree view and render
 		g.SetCurrentView("tree")
 		treeView, _ := g.View("tree")
 		RenderTree(treeView)

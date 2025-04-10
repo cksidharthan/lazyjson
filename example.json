@@ -1,0 +1,149 @@
+{
+  "company": {
+    "name": "TechCorp International",
+    "founded": 2010,
+    "isPublic": true,
+    "headquarters": {
+      "address": "123 Innovation Drive",
+      "city": "San Francisco",
+      "state": "CA",
+      "zip": "94105",
+      "coordinates": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      }
+    },
+    "departments": [
+      {
+        "id": "eng",
+        "name": "Engineering",
+        "employees": [
+          {
+            "id": 1001,
+            "name": "John Smith",
+            "role": "Senior Developer",
+            "skills": ["Go", "Python", "AWS"],
+            "projects": [
+              {
+                "name": "Cloud Migration",
+                "status": "in_progress",
+                "completion": 75.5
+              },
+              {
+                "name": "API Gateway",
+                "status": "completed",
+                "completion": 100.0
+              }
+            ]
+          },
+          {
+            "id": 1002,
+            "name": "Alice Johnson",
+            "role": "DevOps Engineer",
+            "skills": ["Kubernetes", "Docker", "Terraform"],
+            "projects": null
+          }
+        ]
+      },
+      {
+        "id": "sales",
+        "name": "Sales",
+        "employees": [
+          {
+            "id": 2001,
+            "name": "Bob Wilson",
+            "role": "Account Executive",
+            "regions": ["West", "Midwest"],
+            "metrics": {
+              "q1_target": 250000,
+              "q1_actual": 275000,
+              "q2_target": 300000,
+              "q2_actual": 315000
+            }
+          }
+        ]
+      }
+    ],
+    "products": {
+      "cloud_services": {
+        "name": "CloudPro",
+        "versions": ["1.0.0", "1.1.0", "2.0.0"],
+        "features": {
+          "compute": {
+            "enabled": true,
+            "limits": {
+              "cpu": 32,
+              "memory": 128
+            }
+          },
+          "storage": {
+            "enabled": true,
+            "types": ["ssd", "hdd"],
+            "limits": {
+              "ssd_max_gb": 1000,
+              "hdd_max_gb": 10000
+            }
+          },
+          "networking": {
+            "enabled": false,
+            "planned_release": "2024-Q4"
+          }
+        }
+      },
+      "security_suite": {
+        "name": "SecureShield",
+        "versions": ["3.2.1"],
+        "features": {
+          "firewall": {
+            "enabled": true,
+            "modes": ["basic", "advanced", "enterprise"]
+          },
+          "encryption": {
+            "enabled": true,
+            "algorithms": ["AES-256", "RSA-2048"]
+          }
+        }
+      }
+    },
+    "financials": {
+      "revenue": {
+        "2022": {
+          "q1": 1500000,
+          "q2": 1750000,
+          "q3": 1900000,
+          "q4": 2100000
+        },
+        "2023": {
+          "q1": 2200000,
+          "q2": 2400000,
+          "q3": 2600000,
+          "q4": 2800000
+        }
+      },
+      "expenses": {
+        "2023": {
+          "personnel": 1200000,
+          "infrastructure": 500000,
+          "marketing": 300000,
+          "other": 150000
+        }
+      }
+    },
+    "settings": {
+      "notifications": {
+        "email": true,
+        "slack": true,
+        "sms": false
+      },
+      "security": {
+        "mfa_required": true,
+        "password_policy": {
+          "min_length": 12,
+          "require_special_chars": true,
+          "require_numbers": true,
+          "max_age_days": 90
+        }
+      }
+    }
+  }
+}

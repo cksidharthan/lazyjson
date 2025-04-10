@@ -104,7 +104,7 @@ func Layout(g *gocui.Gui) error {
 		v.FgColor = gocui.ColorCyan
 
 		// Navigation help with custom colors
-		fmt.Fprintf(v, "  \033[33mNavigation\033[0m │ \033[36m↑/↓\033[0m: Move cursor   \033[36mEnter\033[0m: Expand/Collapse   \033[36me\033[0m: Expand all   \033[36mc\033[0m: Collapse all\n")
+		fmt.Fprintf(v, "  \033[33mNavigation\033[0m │ \033[36m↑/↓\033[0m: Move   \033[36mg\033[0m: Top   \033[36mG\033[0m: Bottom   \033[36mEnter\033[0m: Expand/Collapse   \033[36me\033[0m: Expand all   \033[36mc\033[0m: Collapse all\n")
 		fmt.Fprintf(v, "  \033[33mFilter\033[0m     │ \033[36m/\033[0m: Enable filter   \033[36mEsc\033[0m: Clear filter   \033[36mEnter\033[0m: Apply filter\n")
 		fmt.Fprintf(v, "  \033[33mOther\033[0m      │ \033[36mq\033[0m: Quit")
 	}

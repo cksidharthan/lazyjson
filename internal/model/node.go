@@ -11,6 +11,7 @@ type Node struct {
 	Parent      *Node
 	Children    []*Node
 	Expanded    bool
+	// Unique, dot-separated path for node identification (e.g., "root.data.items[0].name")
 	Path        string
 	Type        string
 	MatchFilter bool
@@ -44,22 +45,27 @@ func GetFilePath() string {
 }
 
 // BuildTree constructs a tree from JSON data
-func BuildTree(key string, value any, parent *Node, path string) *Node {
+func BuildTree(key string, value any, parent *Node, currentPath string) *Node {
 	node := &Node{
 		Key:         key,
 		Value:       value,
 		Parent:      parent,
 		Children:    []*Node{},
-		Expanded:    false,
-		Path:        path,
+		// Expand all expandable nodes by default initially.
+		// Expanded:    depth <= 3, // Old logic: only expand top 3 levels
+		Path:        currentPath,
 		MatchFilter: false,
 	}
 
+	// Determine node type and set initial expansion state
 	switch v := value.(type) {
 	case map[string]any:
 		node.Type = "object"
+		// Objects are expandable, expand by default
+		node.Expanded = true
 		for k, val := range v {
-			childPath := path
+			// Construct the unique path for the child node
+			childPath := currentPath
 			if childPath != "" {
 				childPath += "."
 			}
@@ -69,20 +75,34 @@ func BuildTree(key string, value any, parent *Node, path string) *Node {
 		}
 	case []any:
 		node.Type = "array"
+		// Arrays are expandable, expand by default
+		node.Expanded = true
 		for i, val := range v {
 			k := fmt.Sprintf("[%d]", i)
-			childPath := path + k
+			// Construct the unique path for the array element
+			childPath := currentPath + k
 			child := BuildTree(k, val, node, childPath)
 			node.Children = append(node.Children, child)
 		}
 	case string:
 		node.Type = "string"
-	case float64:
+		// Non-expandable nodes are never expanded
+		node.Expanded = false
+	case float64, float32:
 		node.Type = "number"
+		node.Expanded = false
+	case int, int8, int16, int32, int64:
+		node.Type = "number"
+		node.Expanded = false
 	case bool:
 		node.Type = "boolean"
+		node.Expanded = false
 	case nil:
 		node.Type = "null"
+		node.Expanded = false
+	default:
+		node.Type = "unknown"
+		node.Expanded = false
 	}
 
 	return node
@@ -139,45 +159,35 @@ func IsExpandable(node *Node) bool {
 	return node != nil && len(node.Children) > 0
 }
 
-// ToggleNodeExpansion finds and toggles the expansion state of a node based on its line representation
-func ToggleNodeExpansion(line string) {
-	rootNode := GetRootNode()
-	showAll := true // We want to find the node even if it's filtered out
-
-	var findAndToggle func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool
-	findAndToggle = func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool {
-		// Skip if node is nil
-		if n == nil {
-			return false
+// findNodeByPath recursively searches for a node by its unique path
+func findNodeByPath(node *Node, targetPath string) *Node {
+	if node == nil {
+		return nil
+	}
+	if node.Path == targetPath {
+		return node
+	}
+	for _, child := range node.Children {
+		if found := findNodeByPath(child, targetPath); found != nil {
+			return found
 		}
+	}
+	return nil
+}
 
-		// Build the line representation for this node
-		var nodeLine string
-		if n.Key == "root" {
-			nodeLine = "JSON Root"
-		} else {
-			nodeLine = n.Key + ": " + GetNodeValueString(n)
-		}
-
-		// Check if this is the line we're looking for
-		if line == nodeLine && IsExpandable(n) {
-			n.Expanded = !n.Expanded
-			return true
-		}
-
-		if n.Expanded {
-			for _, child := range n.Children {
-				if showAll || child.MatchFilter {
-					if findAndToggle(child, depth+1, false, prefix, lineCounter) {
-						return true
-					}
-				}
-			}
-		}
+// ToggleNodeExpansionByPath finds a node by its unique path and toggles its expansion state
+// It returns true if a node was found and toggled, false otherwise.
+func ToggleNodeExpansionByPath(targetPath string) bool {
+	if targetPath == "" {
 		return false
 	}
+	nodeToToggle := findNodeByPath(rootNode, targetPath)
 
-	findAndToggle(rootNode, 0, true, "", nil)
+	if nodeToToggle != nil && IsExpandable(nodeToToggle) {
+		nodeToToggle.Expanded = !nodeToToggle.Expanded
+		return true
+	}
+	return false
 }
 
 // ExpandAll expands all nodes in the tree
