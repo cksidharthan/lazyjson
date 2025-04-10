@@ -3,6 +3,8 @@ package filter
 import (
 	"fmt"
 	"strings"
+	
+	"github.com/cksidharthan/lazyjson/internal/interfaces"
 )
 
 // These imports may cause circular imports, so we use interface{} instead of model.Node
@@ -11,7 +13,7 @@ import (
 var (
 	filterText string
 	showAll    bool = true
-	matchCount int  = 0
+	matchCount int
 )
 
 // SetFilterText sets the current filter text
@@ -44,95 +46,71 @@ func ResetMatchCount() {
 	matchCount = 0
 }
 
-// The Node interface to avoid circular imports
-type Node interface {
-	GetKey() string
-	GetValue() any
-	GetType() string
-	GetChildren() []Node
-	GetParent() Node
-	SetMatchFilter(match bool)
-	IsMatchFilter() bool
-	SetExpanded(expanded bool)
-}
+// Node interface represents a node in the JSON tree
+// This is defined here to avoid circular imports with the model package
+type Node = interfaces.Node
 
 // ApplyFilter applies a filter to the tree and returns whether the node matches
-func ApplyFilter(node any, filter string) bool {
+func ApplyFilter(node Node, filter string) bool {
 	// Reset match count when starting from root
-	if n := node.(Node); n.GetParent() == nil {
+	if node.GetParent() == nil {
 		ResetMatchCount()
 	}
 
-	n := node.(Node)
+	// Empty filter matches everything
+	if filter == "" {
+		node.SetMatchFilter(true)
+		return true
+	}
 
 	// Convert to lowercase for case-insensitive matching
 	filterLower := strings.ToLower(filter)
 
 	// Check if current node matches filter
-	keyMatch := strings.Contains(strings.ToLower(n.GetKey()), filterLower)
+	keyMatch := strings.Contains(strings.ToLower(node.GetKey()), filterLower)
 
+	// Check value match based on node type
 	valueMatch := false
-	nodeType := n.GetType()
-	if nodeType == "string" {
-		if strVal, ok := n.GetValue().(string); ok {
+	nodeType := node.GetType()
+	switch nodeType {
+	case "string":
+		if strVal, ok := node.GetValue().(string); ok {
 			valueMatch = strings.Contains(strings.ToLower(strVal), filterLower)
 		}
-	} else if nodeType == "number" || nodeType == "boolean" {
-		valueMatch = strings.Contains(strings.ToLower(fmt.Sprintf("%v", n.GetValue())), filterLower)
+	case "number", "boolean":
+		valueMatch = strings.Contains(strings.ToLower(fmt.Sprintf("%v", node.GetValue())), filterLower)
 	}
 
-	// Mark this node as matching if it does
-	matches := keyMatch || valueMatch
-	if matches {
+	// Mark this node as matching if it matches directly
+	directMatch := keyMatch || valueMatch
+	if directMatch {
 		matchCount++
 	}
-	n.SetMatchFilter(matches)
 
 	// Apply filter recursively to children
 	childMatch := false
-	for _, child := range n.GetChildren() {
+	for _, child := range node.GetChildren() {
 		if ApplyFilter(child, filter) {
 			childMatch = true
 		}
 	}
 
 	// Node matches if it or any of its children match
-	matches = matches || childMatch
-	n.SetMatchFilter(matches)
+	matches := directMatch || childMatch
+	node.SetMatchFilter(matches)
 
 	return matches
 }
 
 // ClearFilter clears the filter from all nodes
-func ClearFilter(node any) {
-	n := node.(Node)
-	n.SetMatchFilter(false)
+func ClearFilter(node Node) {
+	if node == nil {
+		return
+	}
 
-	for _, child := range n.GetChildren() {
+	node.SetMatchFilter(false)
+
+	for _, child := range node.GetChildren() {
 		ClearFilter(child)
-	}
-}
-
-// ExpandFilterMatches expands nodes that match the filter
-func ExpandFilterMatches(node any) {
-	n := node.(Node)
-
-	if n.IsMatchFilter() && (n.GetType() == "object" || n.GetType() == "array") {
-		n.SetExpanded(true)
-
-		// If this node matches, expand all its parents too
-		parent := n.GetParent()
-		for parent != nil {
-			if pNode, ok := parent.(Node); ok {
-				pNode.SetExpanded(true)
-				parent = pNode.GetParent()
-			} else {
-				break
-			}
-		}
-	}
-
-	for _, child := range n.GetChildren() {
-		ExpandFilterMatches(child)
 	}
 }

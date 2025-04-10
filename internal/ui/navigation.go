@@ -4,7 +4,6 @@ import (
 	"github.com/cksidharthan/lazyjson/internal/filter"
 	"github.com/cksidharthan/lazyjson/internal/model"
 	"github.com/jroimartin/gocui"
-	"strings"
 )
 
 // MoveDown handles down arrow navigation
@@ -35,30 +34,38 @@ func MoveUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// ToggleExpand toggles the expansion state of the current node
+// ToggleExpand toggles the expansion state of the current node using its path
 func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
-	if v != nil {
-		_, cy := v.Cursor()
-		line, err := v.Line(cy)
-		if err != nil {
-			return err
-		}
-
-		// Clean up the line by removing tree symbols and whitespace
-		line = strings.TrimSpace(line)
-		// Handle deep nesting prefixes
-		for strings.HasPrefix(line, "│   ") {
-			line = strings.TrimPrefix(line, "│   ")
-		}
-		line = strings.TrimPrefix(line, "├── ")
-		line = strings.TrimPrefix(line, "└── ")
-		line = strings.TrimSuffix(line, " [-]")
-		line = strings.TrimSuffix(line, " [+]")
-
-		// Toggle node expansion
-		model.ToggleNodeExpansion(line)
-		RenderTree(v)
+	if v == nil {
+		return nil
 	}
+
+	// Get the line number under the cursor
+	_, cy := v.Cursor()
+
+	// Retrieve the node path associated with this line number
+	nodePath, exists := lineToNodePath[cy]
+	if !exists || nodePath == "" {
+		// If no path found for this line (e.g., empty view), do nothing
+		return nil
+	}
+
+	// Toggle the node using its path via the model function
+	toggled := model.ToggleNodeExpansionByPath(nodePath)
+
+	// Re-render the tree only if a node was actually toggled
+	if toggled {
+		// Preserve cursor position and origin
+		curX, curY := v.Cursor()
+		origX, origY := v.Origin()
+
+		RenderTree(v)
+
+		// Restore cursor position and origin
+		v.SetCursor(curX, curY)
+		v.SetOrigin(origX, origY)
+	}
+
 	return nil
 }
 
@@ -69,13 +76,10 @@ func ActivateFilter(g *gocui.Gui, v *gocui.View) error {
 		return err
 	}
 
-	// Don't clear the filter view, just set cursor to end of content
-	if filterView.Buffer() != "" {
-		lines := len(filterView.BufferLines())
-		lastLine := lines - 1
-		lastLineContent := filterView.BufferLines()[lastLine]
-		filterView.SetCursor(len(lastLineContent), lastLine)
-	}
+	// Clear the filter view before activating it
+	filterView.Clear()
+	filterView.SetCursor(0, 0)
+
 	g.SetCurrentView("filter")
 	return nil
 }
@@ -107,6 +111,7 @@ func ClearFilter(g *gocui.Gui, v *gocui.View) error {
 	if err != nil {
 		return err
 	}
+	restoreAndEnsureVisibleAfterFilter(model.GetRootNode())
 	RenderTree(treeView)
 
 	return nil
@@ -130,6 +135,53 @@ func CollapseAll(g *gocui.Gui, v *gocui.View) error {
 	}
 	RenderTree(v)
 	return nil
+}
+
+// restoreAndEnsureVisibleAfterFilter traverses the node tree after filtering.
+// It expands the parents of all nodes that match the filter and restores
+// the pre-filter expansion state for all nodes.
+func restoreAndEnsureVisibleAfterFilter(node *model.Node) {
+	if node == nil {
+		return
+	}
+
+	// --- Step 1: Ensure Visibility of Matches ---
+	// If this node (or one of its children) matched the filter,
+	// we must ensure its parent hierarchy is expanded so it's visible.
+	if node.MatchFilter {
+		parent := node.Parent
+		for parent != nil {
+			// Check the *saved* state before expanding. If the user had
+			// explicitly collapsed a parent before filtering, we respect that
+			// unless that parent itself matched the filter (handled when parent is processed).
+			if savedState, exists := model.GetNodeExpansionState(parent.Path); !exists || savedState {
+				parent.Expanded = true
+			}
+			parent = parent.Parent
+		}
+	}
+
+	// --- Step 2: Restore Pre-Filter Expansion State ---
+	// Regardless of matching, restore the node's original expansion state
+	// that was saved before the filter was applied.
+	if savedState, exists := model.GetNodeExpansionState(node.Path); exists {
+		if model.IsExpandable(node) {
+			node.Expanded = savedState
+		}
+	} else if model.IsExpandable(node) {
+		// Default to collapsed if no prior state exists (e.g., new file)
+		node.Expanded = false
+	}
+
+	// --- Step 3: Recurse ---
+	// Process children. Crucially, we only need to recurse if the current
+	// node is *now* expanded (after state restoration) OR if it's the root.
+	// We must always process the children of the root node.
+	if node.Expanded || node.Parent == nil {
+		for _, child := range node.Children {
+			restoreAndEnsureVisibleAfterFilter(child)
+		}
+	}
 }
 
 // Quit exits the application

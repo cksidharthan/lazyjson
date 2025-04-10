@@ -66,26 +66,40 @@ func filterEditor(g *gocui.Gui, v *gocui.View, key gocui.Key, ch rune, mod gocui
 		filterText := strings.TrimSpace(v.Buffer())
 		filter.SetFilterText(filterText)
 
-		if filterText != "" {
-			filter.SetShowAll(false)
-			rootNode := model.GetRootNode()
-			filter.ApplyFilter(rootNode, filterText)
-			filter.ExpandFilterMatches(rootNode)
+		rootNode := model.GetRootNode()
 
-			// Update matches view
+		if filterText != "" {
+			// 1. Save current expansion states before applying filter
+			// This preserves the user's view state across filtering operations.
+			model.SaveAllExpansionStates()
+
+			// 2. Apply filter: This marks nodes with MatchFilter=true/false
+			// but does NOT change expansion states directly.
+			filter.SetShowAll(false)
+			filter.ApplyFilter(rootNode, filterText)
+
+			// 3. Restore expansion states and ensure parents of matches are expanded
+			// This function iterates the tree, expands necessary parents for visibility,
+			// and restores the original saved expansion state for each node.
+			restoreAndEnsureVisibleAfterFilter(rootNode)
+
+			// 4. Update matches view (status bar)
 			if matchesView, err := g.View("matches"); err == nil {
 				matchesView.Clear()
 				fmt.Fprintf(matchesView, " %d", filter.GetMatchCount())
 			}
 		} else {
+			// Clear filter
 			filter.SetShowAll(true)
-			filter.ClearFilter(model.GetRootNode())
+			filter.ClearFilter(rootNode)
+
 			// Clear matches view
 			if matchesView, err := g.View("matches"); err == nil {
 				matchesView.Clear()
 			}
 		}
 
+		// Return to tree view and render
 		g.SetCurrentView("tree")
 		treeView, _ := g.View("tree")
 		RenderTree(treeView)

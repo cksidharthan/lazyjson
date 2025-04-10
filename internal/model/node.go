@@ -11,7 +11,8 @@ type Node struct {
 	Parent      *Node
 	Children    []*Node
 	Expanded    bool
-	Path        string
+	// Unique, dot-separated path for node identification (e.g., "root.data.items[0].name")
+	Path        string 
 	Type        string
 	MatchFilter bool
 }
@@ -20,6 +21,9 @@ var (
 	rootNode *Node
 	currNode *Node
 	filePath string
+	// expansionStates stores the desired expansion state (true=expanded)
+	// keyed by the unique node Path. Used to preserve state across filtering.
+	expansionStates map[string]bool = make(map[string]bool)
 )
 
 // SetRootNode sets the root node for the model
@@ -43,8 +47,32 @@ func GetFilePath() string {
 	return filePath
 }
 
+// StoreNodeExpansionState stores the expansion state of a node by its path
+func StoreNodeExpansionState(path string, expanded bool) {
+	if path == "" {
+		return
+	}
+	expansionStates[path] = expanded
+}
+
+// GetNodeExpansionState retrieves the stored expansion state of a node by its path
+func GetNodeExpansionState(path string) (bool, bool) {
+	if path == "" {
+		return false, false
+	}
+	// Returns the stored state and whether a state was actually stored for this path.
+	expanded, exists := expansionStates[path]
+	return expanded, exists
+}
+
+// ClearExpansionStates clears all stored expansion states, typically called
+// before saving new states or when clearing filters.
+func ClearExpansionStates() {
+	expansionStates = make(map[string]bool)
+}
+
 // BuildTree constructs a tree from JSON data
-func BuildTree(key string, value any, parent *Node, path string) *Node {
+func BuildTree(key string, value any, parent *Node, currentPath string) *Node {
 	// Calculate current depth
 	depth := 0
 	p := parent
@@ -59,8 +87,9 @@ func BuildTree(key string, value any, parent *Node, path string) *Node {
 		Parent:   parent,
 		Children: []*Node{},
 		// Auto-expand nodes up to depth 3
-		Expanded:    depth <= 20,
-		Path:        path,
+		Expanded:    depth <= 3,
+		// Unique, dot-separated path for node identification (e.g., "root.data.items[0].name")
+		Path:        currentPath,
 		MatchFilter: false,
 	}
 
@@ -68,7 +97,8 @@ func BuildTree(key string, value any, parent *Node, path string) *Node {
 	case map[string]any:
 		node.Type = "object"
 		for k, val := range v {
-			childPath := path
+			// Construct the unique path for the child node
+			childPath := currentPath
 			if childPath != "" {
 				childPath += "."
 			}
@@ -80,7 +110,8 @@ func BuildTree(key string, value any, parent *Node, path string) *Node {
 		node.Type = "array"
 		for i, val := range v {
 			k := fmt.Sprintf("[%d]", i)
-			childPath := path + k
+			// Construct the unique path for the array element
+			childPath := currentPath + k
 			child := BuildTree(k, val, node, childPath)
 			node.Children = append(node.Children, child)
 		}
@@ -148,45 +179,56 @@ func IsExpandable(node *Node) bool {
 	return node != nil && len(node.Children) > 0
 }
 
-// ToggleNodeExpansion finds and toggles the expansion state of a node based on its line representation
-func ToggleNodeExpansion(line string) {
-	rootNode := GetRootNode()
-	showAll := true // We want to find the node even if it's filtered out
-
-	var findAndToggle func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool
-	findAndToggle = func(n *Node, depth int, isLast bool, prefix string, lineCounter *int) bool {
-		// Skip if node is nil
-		if n == nil {
-			return false
+// findNodeByPath recursively searches for a node by its unique path
+func findNodeByPath(node *Node, targetPath string) *Node {
+	if node == nil {
+		return nil
+	}
+	if node.Path == targetPath {
+		return node
+	}
+	for _, child := range node.Children {
+		if found := findNodeByPath(child, targetPath); found != nil {
+			return found
 		}
+	}
+	return nil
+}
 
-		// Build the line representation for this node
-		var nodeLine string
-		if n.Key == "root" {
-			nodeLine = "JSON Root"
-		} else {
-			nodeLine = n.Key + ": " + GetNodeValueString(n)
-		}
+// saveExpansionStateRecursive is a helper to recursively save states
+func saveExpansionStateRecursive(node *Node) {
+	if node == nil {
+		return
+	}
+	// Store the state regardless of expandability, as it might become expandable later
+	StoreNodeExpansionState(node.Path, node.Expanded)
+	for _, child := range node.Children {
+		saveExpansionStateRecursive(child)
+	}
+}
 
-		// Check if this is the line we're looking for
-		if line == nodeLine && IsExpandable(n) {
-			n.Expanded = !n.Expanded
-			return true
-		}
+// SaveAllExpansionStates iterates through the entire tree and saves
+// the current expansion state of each node to the expansionStates map.
+func SaveAllExpansionStates() {
+	ClearExpansionStates() // Clear previous states before saving new ones
+	saveExpansionStateRecursive(rootNode)
+}
 
-		if n.Expanded {
-			for _, child := range n.Children {
-				if showAll || child.MatchFilter {
-					if findAndToggle(child, depth+1, false, prefix, lineCounter) {
-						return true
-					}
-				}
-			}
-		}
+// ToggleNodeExpansionByPath finds a node by its unique path and toggles its expansion state
+// It returns true if a node was found and toggled, false otherwise.
+func ToggleNodeExpansionByPath(targetPath string) bool {
+	if targetPath == "" {
 		return false
 	}
+	nodeToToggle := findNodeByPath(rootNode, targetPath)
 
-	findAndToggle(rootNode, 0, true, "", nil)
+	if nodeToToggle != nil && IsExpandable(nodeToToggle) {
+		nodeToToggle.Expanded = !nodeToToggle.Expanded
+		// Optionally update stored state if needed immediately, though maybe better after render?
+		// StoreNodeExpansionState(nodeToToggle.Path, nodeToToggle.Expanded)
+		return true
+	}
+	return false
 }
 
 // ExpandAll expands all nodes in the tree
@@ -196,6 +238,7 @@ func ExpandAll(node *Node) {
 	}
 
 	node.Expanded = true
+	StoreNodeExpansionState(node.Path, node.Expanded)
 	for _, child := range node.Children {
 		ExpandAll(child)
 	}
@@ -210,6 +253,7 @@ func CollapseAll(node *Node) {
 	// Don't collapse the root node
 	if node.Key != "root" {
 		node.Expanded = false
+		StoreNodeExpansionState(node.Path, node.Expanded)
 	}
 
 	for _, child := range node.Children {
