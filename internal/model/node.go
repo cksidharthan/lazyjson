@@ -73,29 +73,23 @@ func ClearExpansionStates() {
 
 // BuildTree constructs a tree from JSON data
 func BuildTree(key string, value any, parent *Node, currentPath string) *Node {
-	// Calculate current depth
-	depth := 0
-	p := parent
-	for p != nil {
-		depth++
-		p = p.Parent
-	}
-
 	node := &Node{
-		Key:      key,
-		Value:    value,
-		Parent:   parent,
-		Children: []*Node{},
-		// Auto-expand nodes up to depth 3
-		Expanded:    depth <= 3,
-		// Unique, dot-separated path for node identification (e.g., "root.data.items[0].name")
+		Key:         key,
+		Value:       value,
+		Parent:      parent,
+		Children:    []*Node{},
+		// Expand all expandable nodes by default initially.
+		// Expanded:    depth <= 3, // Old logic: only expand top 3 levels
 		Path:        currentPath,
 		MatchFilter: false,
 	}
 
+	// Determine node type and set initial expansion state
 	switch v := value.(type) {
 	case map[string]any:
 		node.Type = "object"
+		// Objects are expandable, expand by default
+		node.Expanded = true
 		for k, val := range v {
 			// Construct the unique path for the child node
 			childPath := currentPath
@@ -108,6 +102,8 @@ func BuildTree(key string, value any, parent *Node, currentPath string) *Node {
 		}
 	case []any:
 		node.Type = "array"
+		// Arrays are expandable, expand by default
+		node.Expanded = true
 		for i, val := range v {
 			k := fmt.Sprintf("[%d]", i)
 			// Construct the unique path for the array element
@@ -117,12 +113,23 @@ func BuildTree(key string, value any, parent *Node, currentPath string) *Node {
 		}
 	case string:
 		node.Type = "string"
-	case float64:
+		// Non-expandable nodes are never expanded
+		node.Expanded = false
+	case float64, float32:
 		node.Type = "number"
+		node.Expanded = false
+	case int, int8, int16, int32, int64:
+		node.Type = "number"
+		node.Expanded = false
 	case bool:
 		node.Type = "boolean"
+		node.Expanded = false
 	case nil:
 		node.Type = "null"
+		node.Expanded = false
+	default:
+		node.Type = "unknown"
+		node.Expanded = false
 	}
 
 	return node

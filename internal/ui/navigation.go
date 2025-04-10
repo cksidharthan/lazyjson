@@ -40,13 +40,17 @@ func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
 		return nil
 	}
 
-	// Get the line number under the cursor
+	// Get the line number under the cursor (relative to the view origin)
 	_, cy := v.Cursor()
+	// Get the view's origin (top-left visible line)
+	_, oy := v.Origin()
+	// Calculate the absolute line number in the buffer
+	absoluteLine := oy + cy
 
-	// Retrieve the node path associated with this line number
-	nodePath, exists := lineToNodePath[cy]
+	// Retrieve the node path associated with this absolute line number
+	nodePath, exists := lineToNodePath[absoluteLine]
 	if !exists || nodePath == "" {
-		// If no path found for this line (e.g., empty view), do nothing
+		// If no path found for this line (e.g., empty view or error), do nothing
 		return nil
 	}
 
