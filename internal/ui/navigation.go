@@ -34,6 +34,37 @@ func MoveUp(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
+// MoveToTop moves the cursor and origin to the top of the view
+func MoveToTop(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		v.SetCursor(0, 0)
+		v.SetOrigin(0, 0)
+	}
+	return nil
+}
+
+// MoveToBottom moves the cursor and origin to the bottom of the view
+func MoveToBottom(g *gocui.Gui, v *gocui.View) error {
+	if v != nil {
+		// Lines returns the view's buffer lines, 0-indexed.
+		// Last line index is len(lines) - 1.
+		// If buffer is empty, lines is 1 (contains empty string), len is 1, last line is 0.
+		lines := v.ViewBufferLines()
+		lastLine := len(lines) - 1
+		if lastLine < 0 {
+			lastLine = 0 // Ensure we don't go negative for empty/single-line buffer
+		}
+		// Attempt to set cursor to the last line.
+		// If SetCursor fails (e.g., lastLine is outside visible area),
+		// gocui usually handles scrolling the origin automatically when cursor moves
+		// out of view, but we can also force SetOrigin if needed.
+		// For simplicity, let's try setting both.
+		v.SetOrigin(0, lastLine) // Move origin first
+		v.SetCursor(0, lastLine) // Then set cursor relative to the (potentially new) origin
+	}
+	return nil
+}
+
 // ToggleExpand toggles the expansion state of the current node using its path
 func ToggleExpand(g *gocui.Gui, v *gocui.View) error {
 	if v == nil {

@@ -24,6 +24,12 @@ func SetupKeybindings(g *gocui.Gui) error {
 	if err := g.SetKeybinding("tree", gocui.KeyArrowUp, gocui.ModNone, MoveUp); err != nil {
 		return err
 	}
+	if err := g.SetKeybinding("tree", 'g', gocui.ModNone, MoveToTop); err != nil {
+		return err
+	}
+	if err := g.SetKeybinding("tree", 'G', gocui.ModNone, MoveToBottom); err != nil {
+		return err
+	}
 
 	// Expand/collapse
 	if err := g.SetKeybinding("tree", gocui.KeyEnter, gocui.ModNone, ToggleExpand); err != nil {
